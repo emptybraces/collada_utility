@@ -178,6 +178,8 @@ def writeBinary(f, data_map, v_num):
         write(f, "<1f", elem);
     print();
 def main():
+    """main process.
+    """
     if len(sys.argv) <= (2 if not DEBUG_MODE else 1):
         print("invalid arguments");
         sys.exit();
@@ -238,8 +240,46 @@ def main():
                 for elem in geometry_elements:
                     geometry = GeometryElement(elem, namespaces);
                     library_geometries.addElement(geometry);
-        # declare the list of data info to write
+
+        # declare the data info to write
         data_list = [];
+        data = {};
+        data["position_value"]  = None;
+        data["position_index"]  = None;
+        data["normal_value"]    = None;
+        data["normal_index"]    = None;
+        data["texcoord_value"]  = None;
+        data["texcoord_index"]  = None;
+        data["color_value"]     = None;
+        data["color_index"]     = None;
+        data["material"]        = None;
+
+        # store the data to write
+        for geo in LibraryGeometries:
+            sourcesElemList     = geo.mesh.sourceElementList;
+            verticesElemList    = geo.mesh.verticesElementList;
+            polylistElemList    = geo.mesh.polylistElementList;
+
+            # store the data for each element polylist
+            for polylist in polylistElemList:
+                
+                # position data
+
+                # extract source text in vertices element
+                sourceRef = polylist._input_position_source;
+                vertices = list(filter(lambda e: e.match(sourceRef), verticesElemList));
+                if len(vertices) == 1:
+                    sourceRef = vertices[0].source;
+                position_sources = list(filter(lambda e: e.match(sourceRef), sourcesElemList));
+                assert(len(position_sources) == 1, "can not find sources position.");
+                data["position_value"] = position_sources[0].value;
+                data["position_count"] = position_sources[0].count;
+                print(data);
+
+
+
+
+
         
 
                     

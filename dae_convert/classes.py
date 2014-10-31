@@ -11,6 +11,8 @@ class Library:
         return self._elements;
     def addElement(self, element):
         self._elements.append(element);
+    def __iter__(self):
+        return self.elements;
 
 class LibraryMaterials(Library):
     """manage for MaterialElement class.
@@ -79,45 +81,48 @@ class GeometryElement(Element):
         self._mesh = MeshElement(mesh);
     @property
     def mesh(self):
-        return self._mesh
+        return self._mesh;
 
 class MeshElement(Element):
     """<mesh> element information"""
     def __init__(self, element, namespaces):
         super().__init__(element, namespaces);
-        self._sources = list(map(
+        self._sourceElementList = list(map(
             lambda elem: SourceElement(elem, namespaces),
             element.findall("NS:source", namespaces)));
-        self._vertices = list(map(
+        self._verticesElementList = list(map(
             lambda elem: VerticesElement(elem, namespaces),
             element.findall("NS:vertices", namespaces)));
-        self._polylist = list(map(
+        self._polylistElementList = list(map(
             lambda elem: PolylistElement(elem, namespaces),
             element.findall("NS:polylist", namespaces)));
     @property
-    def sources(self):
-        return self._sources;
+    def sourceElementList(self):
+        return self._sourceElementList;
     @property
-    def vertices(self):
-        return self._vertices;
+    def verticesElementList(self):
+        return self._verticesElementList;
     @property
-    def polylist(self):
-        return self._polylist;
+    def polylistElementList(self):
+        return self._polylistElementList;
 
 class SourceElement(Element):
     """<source> element information"""
     def __init__(self, element, namespaces):
         super(self.__class__, self).__init__(element, namespaces);
         float_array = element.find("NS:float_array", namespaces);
-        self.data = float_array.text.split();
-        self._count = float_array.attrib.get("count";
+        self._value = float_array.text.split();
+        self._count = float_array.attrib.get("count");
         # stride = 3; # TODO: get from accessor attribute
         # self.data = self.splitArray(text.split(" "), stride);
     @property
+    def value(self):
+        return self._value;
+    @property
     def count(self):
-        return self._count
+        return self._count;
     def match(self, source):
-        return True if source.find(self.id) != -1 else False;
+        return source in self.id;
 
 class VerticesElement:
     """<vertices> element information"""
@@ -132,7 +137,7 @@ class VerticesElement:
     def source(self):
         return self._source;
     def match(self, source):
-        return self.source if source.find(self.id) != -1 else None;
+        return source in self.id;
 
 class PolylistElement:
     """<polylist> element information"""
@@ -155,29 +160,49 @@ class PolylistElement:
                 self._input_color_source = elem.attrib.get("source");
                 self._input_color_offset = elem.attrib.get("offset");
                 self._input_color_set = elem.attrib.get("set");
-        # get the vcount
-        self._vcount = element.find("NS:vcount", namespaces).text.split();
-        self._vcount = list(map(lambda x: int(x), self.vcount));
+        # get the matrial
+        self._material = element.attrib.get("material");
+        # get the vertex count
+        self._vertexCount = element.attrib.get("count");
+        # get the value count
+        self._valueCount = convertStringList2IntList(element.find("NS:vcount", namespaces).text.split());
         # get the p
-        self._p = element.find("NS:p", namespaces).text.split();
-        self._p = list(map(lambda x: int(x), self.p));
-    @property def input_position_source(self):  return self._input_position_source;
-    @property def input_position_offset(self):  return self._input_position_offset;
-    @property def input_position_set(self):     return self._input_position_set;
-    @property def input_normal_source(seaf):    return self._input_normal_source;
-    @property def input_normal_offset(self):    return self._input_normal_offset;
-    @property def input_normal_set(self):       return self._input_normal_set;
-    @property def input_texcoord_source(self):  return self._input_texcoord_source;
-    @property def input_texcoord_offset(self):  return self._input_texcoord_offset;
-    @property def input_texcoord_set(self):     return self._input_texcoord_set;
-    @property def input_color_source(self):     return self._input_color_source;
-    @property def input_color_offset(self):     return self._input_color_offset;
-    @property def input_color_set(self):        return self._input_color_set;
-    @property def vcount(self):                 return self._vcount;
-    @property def p(self):                      return self._p;
-    def totalVCount(self):
+        self._p = convertStringList2IntList(element.find("NS:p", namespaces).text.split());
+    @property 
+    def input_position_source(self):  return self._input_position_source;
+    @property 
+    def input_position_offset(self):  return self._input_position_offset;
+    @property
+    def input_position_set(self):     return self._input_position_set;
+    @property
+    def input_normal_source(seaf):    return self._input_normal_source;
+    @property
+    def input_normal_offset(self):    return self._input_normal_offset;
+    @property
+    def input_normal_set(self):       return self._input_normal_set;
+    @property
+    def input_texcoord_source(self):  return self._input_texcoord_source;
+    @property
+    def input_texcoord_offset(self):  return self._input_texcoord_offset;
+    @property
+    def input_texcoord_set(self):     return self._input_texcoord_set;
+    @property
+    def input_color_source(self):     return self._input_color_source;
+    @property
+    def input_color_offset(self):     return self._input_color_offset;
+    @property
+    def input_color_set(self):        return self._input_color_set;
+    @property
+    def material(self):               return self._material;
+    @property
+    def vertexCount(self):            return self._vertexCount;
+    @property
+    def valueCount(self):             return self._valueCount;
+    @property
+    def p(self):                      return self._p;
+    def totalValueCount(self):
         # return reduce(lambda x, y: int(x) + int(y), self.vcount);
-        return sum(self.vcount);
+        return sum(self.valueCount);
 
 class DebugPrint:
     """ Dummy Class
@@ -195,3 +220,7 @@ class DebugPrint:
     
     def __exit__(self, type, value, traceback):
         pass;
+
+# utility methods
+def convertStringList2IntList(stringList):
+    return list(map(lambda x: int(x), stringList));
