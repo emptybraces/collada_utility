@@ -9,7 +9,7 @@ from classes import *
 DEBUG_MODE = True;
 USE_INDICES = False;
 
-# function definition
+# functions
 def write(file, fmt, *args):
     if DEBUG_MODE:
         file.write(fmt, *args);
@@ -43,88 +43,91 @@ def normalize(values):
 # position data,		4 * position data count
 # normal data,			4 * normal data count
 # 
-def writeBinaryWithIndices(f, data_map, v_num):
-    pos_semantic = None;
-    pos_valuenum = None;
-    pos_indices = None;
-    pos_vertex = None;
-    pos_vertex_num = None;
-    normal_semantic = None;
-    normal_valuenum = None;
-    normal_indices = None;
-    normal_vertex = None;
-    # collect write info
-    for m in data_map:
-        # vertex info
-        if m["semantic"] == "VERTEX":
-            pos_semantic = ord(m["semantic"][0]);
-            pos_valuenum = m["valueNum"];
-            pos_indices = m["index"];
-            pos_vertex = m["vertex"];
-            pos_vertex_num = int(len(m["vertex"]) / 3);
-        # normal info
-        elif m["semantic"] == "NORMAL":
-            normal_semantic = ord(m["semantic"][0]);
-            # normal_valuenum = m["valueNum"];
-            normal_indices = m["index"];
-            normal_vertex = m["vertex"];
+def writeBinaryWithIndices(f, datalist):
+    pass;
+    # pos_semantic = None;
+    # pos_valuenum = None;
+    # pos_indices = None;
+    # pos_vertex = None;
+    # pos_vertex_num = None;
+    # normal_semantic = None;
+    # normal_valuenum = None;
+    # normal_indices = None;
+    # normal_vertex = None;
+    # # collect write info
+    # for m in data_map:
+    #     # vertex info
+    #     if m["semantic"] == "VERTEX":
+    #         pos_semantic = ord(m["semantic"][0]);
+    #         pos_valuenum = m["valueNum"];
+    #         pos_indices = m["index"];
+    #         pos_vertex = m["vertex"];
+    #         pos_vertex_num = int(len(m["vertex"]) / 3);
+    #     # normal info
+    #     elif m["semantic"] == "NORMAL":
+    #         normal_semantic = ord(m["semantic"][0]);
+    #         # normal_valuenum = m["valueNum"];
+    #         normal_indices = m["index"];
+    #         normal_vertex = m["vertex"];
 
-    new_vertex_normal = [[0, 0, 0] for i in range(pos_vertex_num)];
-    tmp_vertex_normal = [[] for i in range(pos_vertex_num)];
-    for i in range(len(pos_indices)):
-        pi = int(pos_indices[i]);
-        ni = int(normal_indices[i]);
-        nx = float(normal_vertex[ni * 3 + 0]);
-        ny = float(normal_vertex[ni * 3 + 1]);
-        nz = float(normal_vertex[ni * 3 + 2]);
-        already = False;
-        for v in tmp_vertex_normal[pi]:
-            if v[0] == nx and v[1] == ny and v[2] == nz:
-                already = True;
-                break;
-        if not already:
-            new_vertex_normal[pi][0] += nx;
-            new_vertex_normal[pi][1] += ny;
-            new_vertex_normal[pi][2] += nz;
-            tmp_vertex_normal[pi].append([nx, ny, nz]);
-    normal_valuenum = len(new_vertex_normal) * 3;
-    # write
-    print("header part:");
-    write(f, "<1i", 0);
-    write(f, "<2i", pos_semantic, pos_valuenum);
-    write(f, "<2i", normal_semantic, normal_valuenum);
-    # index size
-    write(f, "<1i", ord("Common"[0]));
-    write(f, "<1i", len(pos_indices));
-    print("\ndata part:");
-    # indices
-    for elem in pos_indices: 
-        write(f, "<1h", int(elem));
-    print();
-    # vertex data
-    for elem in pos_vertex: 
-        write(f, "<1f", float(elem));
-    print();
-    # normal data
-    for v3 in new_vertex_normal:
-        v3 = normalize(v3);
-        write(f, "<3f", v3[0], v3[1], v3[2]);
-    print();
-#
-# write to a file the custom model data.
-#
-# datamap
-# name, byte
-# mode,					4
-# position semantic, 	4
-# position data count, 	4
-# normal semantic, 		4
-# normal data count, 	4
-# common semantic, 		4 
-# position data,		4 * position data count
-# normal data,			4 * normal data count
-# 
-def writeBinary(f, data_map, v_num):
+    # new_vertex_normal = [[0, 0, 0] for i in range(pos_vertex_num)];
+    # tmp_vertex_normal = [[] for i in range(pos_vertex_num)];
+    # for i in range(len(pos_indices)):
+    #     pi = int(pos_indices[i]);
+    #     ni = int(normal_indices[i]);
+    #     nx = float(normal_vertex[ni * 3 + 0]);
+    #     ny = float(normal_vertex[ni * 3 + 1]);
+    #     nz = float(normal_vertex[ni * 3 + 2]);
+    #     already = False;
+    #     for v in tmp_vertex_normal[pi]:
+    #         if v[0] == nx and v[1] == ny and v[2] == nz:
+    #             already = True;
+    #             break;
+    #     if not already:
+    #         new_vertex_normal[pi][0] += nx;
+    #         new_vertex_normal[pi][1] += ny;
+    #         new_vertex_normal[pi][2] += nz;
+    #         tmp_vertex_normal[pi].append([nx, ny, nz]);
+    # normal_valuenum = len(new_vertex_normal) * 3;
+    # # write
+    # print("header part:");
+    # write(f, "<1i", 0);
+    # write(f, "<2i", pos_semantic, pos_valuenum);
+    # write(f, "<2i", normal_semantic, normal_valuenum);
+    # # index size
+    # write(f, "<1i", ord("Common"[0]));
+    # write(f, "<1i", len(pos_indices));
+    # print("\ndata part:");
+    # # indices
+    # for elem in pos_indices: 
+    #     write(f, "<1h", int(elem));
+    # print();
+    # # vertex data
+    # for elem in pos_vertex: 
+    #     write(f, "<1f", float(elem));
+    # print();
+    # # normal data
+    # for v3 in new_vertex_normal:
+    #     v3 = normalize(v3);
+    #     write(f, "<3f", v3[0], v3[1], v3[2]);
+    # print();
+def writeBinary(f, datalist):
+    """
+    write to a file the custom model data.
+    
+    datamap
+    column: name, byte(*=variable length)
+    custom type,                4
+    geometry name,              *
+    material name,              *
+    position semantic,          4
+    position data count,  4
+    normal semantic,      4
+    normal data count,    4
+    common semantic,      4 
+    position data,        4 * position data count
+    normal data,          4 * normal data count
+    """
     pos_semantic = None;
     pos_indices = None;
     pos_vertex = None;
@@ -177,6 +180,9 @@ def writeBinary(f, data_map, v_num):
     for elem in new_vertex_normal:
         write(f, "<1f", elem);
     print();
+# 
+# main process 
+# 
 def main():
     """main process.
     """
@@ -243,19 +249,24 @@ def main():
 
         # declare the data info to write
         data_list = [];
-        data = {};
-        data["position_value"]  = None;
-        data["position_index"]  = None;
-        data["normal_value"]    = None;
-        data["normal_index"]    = None;
-        data["texcoord_value"]  = None;
-        data["texcoord_index"]  = None;
-        data["color_value"]     = None;
-        data["color_index"]     = None;
-        data["material"]        = None;
+        # data = {};
+        # data["position_value"]        = None;
+        # data["position_value_count"]  = None;
+        # data["position_index"]        = None;
+        # data["normal_value"]          = None;
+        # data["normal_value_count"]    = None;
+        # data["normal_index"]          = None;
+        # data["texcoord_value"]        = None;
+        # data["texcoord_value_count"]  = None;
+        # data["texcoord_index"]        = None;
+        # data["color_value"]           = None;
+        # data["color_value_count"]     = None;
+        # data["color_index"]           = None;
+        # data["material"]              = None;
+        # data["vertex_count"]          = None;
 
         # store the data to write
-        for geo in LibraryGeometries:
+        for geo in library_geometries:
             sourcesElemList     = geo.mesh.sourceElementList;
             verticesElemList    = geo.mesh.verticesElementList;
             polylistElemList    = geo.mesh.polylistElementList;
@@ -263,80 +274,71 @@ def main():
             # store the data for each element polylist
             for polylist in polylistElemList:
                 
+                data = {};
+                iecount = polylist.inputElementCount;
                 # position data
-
-                # extract source text in vertices element
-                sourceRef = polylist._input_position_source;
-                vertices = list(filter(lambda e: e.match(sourceRef), verticesElemList));
-                if len(vertices) == 1:
-                    sourceRef = vertices[0].source;
-                position_sources = list(filter(lambda e: e.match(sourceRef), sourcesElemList));
-                assert(len(position_sources) == 1, "can not find sources position.");
-                data["position_value"] = position_sources[0].value;
-                data["position_count"] = position_sources[0].count;
-                print(data);
-
-
-
-
-
-        
-
-                    
-                # mesh = child.findall("NS:geometry/NS:mesh", namespaces);
-                # sources = list(map(
-                #     lambda elem: SourceElement(elem, namespaces),
-                #     mesh.findall("NS:source", namespaces)));
-                # vertices = list(map(
-                #     lambda elem: VerticesElement(elem, namespaces),
-                #     mesh.findall("NS:vertices", namespaces)));
-                # polylist = list(map(
-                #     lambda elem: PolylistElement(elem, namespaces),
-                #     mesh.findall("NS:polylist", namespaces)));
-
-                # # linking index and data
-                # data_map = [];
-                # sources_num = len(sources);
-                # target_polylist = polylist[0];
-                # # input element in polylist
-                # for ip in target_polylist.input:
-                #     # target source
-                #     ts = ip["source"]
-                #     # match vertices element's id in polylist element's source
-                #     for v in vertices:
-                #         source = v.match(ts);
-                #         if source:
-                #             ts = source;
-                #     # match target source in sources element's id
-                #     # assumptions are stored in order of the offset
-                #     for s in sources:
-                #         if s.match(ts):
-                #             # get vertex data
-                #             offset = int(ip["offset"]);
-                #             # print(ts, target_polylist.p[offset::sources_num]);
-                #             data = {
-                #                 "semantic": ip["semantic"],
-                #                 "valueNum": int(s.count),
-                #                 # "vtotal": target_polylist.totalVCount(),
-                #                 "vertex": None,
-                #                 "index": []
-                #             };
-                #             # set index
-                #             data["index"] = target_polylist.p[offset::sources_num];
-                #             # set vertex value
-                #             data["vertex"] = s.data;
-                #             data_map.append(data);
-                # # write binary
-                # with (open(sys.argv[2], 'wb' ) if not DEBUG_MODE else DebugPrint()) as f:
-                # 	if USE_INDICES:
-                # 		writeBinaryWithIndices(f, data_map, target_polylist.totalVCount());
-                # 	else:
-                # 		writeBinary(f, data_map, target_polylist.totalVCount());
+                if polylist.hasPosition:
+                    # extract source text in vertices element
+                    sourceRef = polylist.inputPositionSource;
+                    vertices = list(filter(lambda e: e.match(sourceRef), verticesElemList));
+                    if vertices:
+                        sourceRef = vertices[0].source;
+                    # target sources
+                    target_sources = list(filter(lambda e: e.match(sourceRef), sourcesElemList));
+                    assert target_sources, "can not find sources position.";
+                    ts = target_sources[0];
+                    offset = polylist.inputPositionOffset;
+                    data["position_value"]          = ts.value;
+                    data["position_value_count"]    = ts.count;
+                    data["position_index"]          = polylist.p[offset::iecount];
+                # normal data
+                if polylist.hasNormal:
+                    sourceRef = polylist.inputNormalSource;
+                    target_sources = list(filter(lambda e: e.match(sourceRef), sourcesElemList));
+                    assert target_sources, "can not find sources normal.";
+                    ts = target_sources[0];
+                    offset = polylist.inputNormalOffset;
+                    data["normal_value"]        = ts.value;
+                    data["normal_value_count"]  = ts.count;
+                    data["normal_index"]        = polylist.p[offset::iecount];
+                # texcoord data
+                if polylist.hasTexcoord:
+                    sourceRef = polylist.inputTexcoordSource;
+                    target_sources = list(filter(lambda e: e.match(sourceRef), sourcesElemList));
+                    assert target_sources, "can not find sources texcoord.";
+                    ts = target_sources[0];
+                    offset = polylist.inputTexcoordOffset;
+                    data["texcoord_value"]          = ts.value;
+                    data["texcoord_value_count"]    = ts.count;
+                    data["texcoord_index"]          = polylist.p[offset::iecount];
+                # color data
+                if polylist.hasColor:
+                    sourceRef = polylist.inputColorSource;
+                    target_sources = list(filter(lambda e: e.match(sourceRef), sourcesElemList));
+                    assert target_sources, "can not find sources color.";
+                    ts = target_sources[0];
+                    offset = polylist.inputColorOffset;
+                    data["color_value"]         = ts.value;
+                    data["color_value_count"]   = ts.count;
+                    data["color_index"]         = polylist.p[offset::iecount];
+                # material data
+                data["material"] = polylist.material;
+                # vertex count
+                data["vertex_count"] = polylist.vertexCount;
+                # append the datalist
+                data_list.append(data);
+        # write binary
+        # with (open(sys.argv[2], 'wb' ) if not DEBUG_MODE else DebugPrint()) as f:
+        # 	if USE_INDICES:
+        # 		writeBinaryWithIndices(f, data_list);
+        # 	else:
+        # 		writeBinary(f, data_list);
     except:
         print("unexpected error", sys.exc_info()[0]);
         raise;
 
-
+# 
 # entry point
+# 
 if __name__ == '__main__':
-    main()
+    main();

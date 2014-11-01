@@ -4,18 +4,23 @@ import inspect
 class Library:
     """parent class of all library classes.
     """
-    def __init__(self, lst = []):
-        self._elements = lst;
+    def __init__(self):
+        self._elements = [];
     @property
     def elements(self):
         return self._elements;
     def addElement(self, element):
-        self._elements.append(element);
+        self.elements.append(element);
     def __iter__(self):
-        return self.elements;
+        return iter(self.elements);
 
 class LibraryMaterials(Library):
     """manage for MaterialElement class.
+    """
+    def __init__(self):
+        super().__init__();
+class LibraryEffects(Library):
+    """manage for EffectElement class.
     """
     def __init__(self):
         super().__init__();
@@ -37,13 +42,17 @@ class Element:
     """
     def __init__(self, element, namespaces):
         self._id = element.attrib.get("id");
+        self._sid = element.attrib.get("sid");
         self._name = element.attrib.get("name");
+        self._type = element.attrib.get("type");
     @property
-    def id(self):
-        return self._id;
+    def id(self): return self._id;
     @property
-    def name(self):
-        return self._name
+    def sid(self): return self._sid;
+    @property
+    def name(self): return self._name;
+    @property
+    def type(self): return self._type;
     def splitArray(self, array, stride):
         r = [];
         s = 0; e = stride;
@@ -64,21 +73,45 @@ class MaterialElement(Element):
     def instanceEffectUrl(self):
         return self._instanceEffectUrl;
     
+class EffectElement(Element):
+    """<effect> element information"""
+    def __init__(self, element, namespaces):
+        super().__init__(element, namespaces);
+        self._newparamElementList = [];
+        for elem in element.findall("NS:newparam", namespaces):
+            self._newparamElementList.append(NewparamElement(elem, namespaces));
+    @property
+    def newparamElementList(self): return self._newparamElementList
+    
+class NewparamElement(Element):
+    """<newparam> element information"""
+    def __init__(self, element, namespaces):
+        super().__init__(element, namespaces);
+        surface_element = element.find("NS:surface", namespaces);
+        self._surfaceType = surface_element.attrib.get("type");
+        self._surfaceInitfrom = element.find("NS:surface/NS:init_from", namespaces).text;
+        self._sampler2DSource = element.find("NS:sampler2D/NS:source", namespaces).text;
+    @property
+    def surfaceType(self):     return self._surfaceType;
+    @property
+    def surfaceInitfrom(self): return self._surfaceInitfrom;
+    @property
+    def sampler2DSource(self): return self._sampler2DSource;
+
 class ImageElement(Element):
     """<image> element information"""
     def __init__(self, element, namespaces):
         super().__init__(element, namespaces);
-        self._url = element.find("NS:init_from", namespaces).text;
+        self._initfrom = element.find("NS:init_from", namespaces).text;
     @property
-    def url(self):
-        return self._url;
+    def initfrom(self): return self._initfrom;
 
 class GeometryElement(Element):
     """<geometry> element information"""
     def __init__(self, element, namespaces):
         super().__init__(element, namespaces);
         mesh = element.find("NS:mesh", namespaces);
-        self._mesh = MeshElement(mesh);
+        self._mesh = MeshElement(mesh, namespaces);
     @property
     def mesh(self):
         return self._mesh;
@@ -122,11 +155,12 @@ class SourceElement(Element):
     def count(self):
         return self._count;
     def match(self, source):
-        return source in self.id;
+        return self.id in source;
 
-class VerticesElement:
+class VerticesElement(Element):
     """<vertices> element information"""
     def __init__(self, element, namespaces):
+        super().__init__(element, namespaces);
         _input = element.find("NS:input", namespaces)
         self._semantic = _input.attrib.get("semantic");
         self._source = _input.attrib.get("source");
@@ -137,72 +171,94 @@ class VerticesElement:
     def source(self):
         return self._source;
     def match(self, source):
-        return source in self.id;
+        return self.id in source;
 
-class PolylistElement:
+class PolylistElement(Element):
     """<polylist> element information"""
     def __init__(self, element, namespaces):
+        super().__init__(element, namespaces);
+        # declare member variable
+        self._hasPosition    = False;
+        self._hasNormal      = False;
+        self._hasTexcoord    = False;
+        self._hasColor       = False;
         # get the input information
+        input_element_count = 0;
         for elem in element.findall("NS:input", namespaces):
-            if elem.attrib.get("semantic") == "POSITION":
-                self._input_position_source = elem.attrib.get("source");
-                self._input_position_offset = elem.attrib.get("offset");
-                self._input_position_set = elem.attrib.get("set");
-            elif elem.attrib.get("semantic") == "NORMAL":
-                self._input_normal_source = elem.attrib.get("source");
-                self._input_normal_offset = elem.attrib.get("offset");
-                self._input_normal_set = elem.attrib.get("set");
-            elif elem.attrib.get("semantic") == "TEXCOORD":
-                self._input_texcoord_source = elem.attrib.get("source");
-                self._input_texcoord_offset = elem.attrib.get("offset");
-                self._input_texcoord_set = elem.attrib.get("set");
-            elif elem.attrib.get("semantic") == "COLOR":
-                self._input_color_source = elem.attrib.get("source");
-                self._input_color_offset = elem.attrib.get("offset");
-                self._input_color_set = elem.attrib.get("set");
+            input_element_count += 1;
+            semantic = elem.attrib.get("semantic");
+            if semantic == "VERTEX":
+                self._hasPosition           = True;
+                self._inputPositionSource   = elem.attrib.get("source");
+                self._inputPositionOffset   = int(elem.attrib.get("offset"));
+                self._inputPositionSet      = elem.attrib.get("set");
+            elif semantic == "NORMAL":
+                self._hasNormal             = True;
+                self._inputNormalSource     = elem.attrib.get("source");
+                self._inputNormalOffset     = int(elem.attrib.get("offset"));
+                self._inputNormalSet        = elem.attrib.get("set");
+            elif semantic == "TEXCOORD":
+                self._hasTexcoord           = True;
+                self._inputTexcoordSource   = elem.attrib.get("source");
+                self._inputTexcoordOffset   = int(elem.attrib.get("offset"));
+                self._inputTexcoordSet      = elem.attrib.get("set");
+            elif semantic == "COLOR":
+                self._hasColor              = True;
+                self._inputColorSource      = elem.attrib.get("source");
+                self._inputColorOffset      = int(elem.attrib.get("offset"));
+                self._inputColorSet         = elem.attrib.get("set");
         # get the matrial
         self._material = element.attrib.get("material");
         # get the vertex count
         self._vertexCount = element.attrib.get("count");
         # get the value count
-        self._valueCount = convertStringList2IntList(element.find("NS:vcount", namespaces).text.split());
+        self._valueCount = sum(convertStringList2IntList(element.find("NS:vcount", namespaces).text.split()));
         # get the p
         self._p = convertStringList2IntList(element.find("NS:p", namespaces).text.split());
+        # input element count
+        self._inputElementCount = input_element_count;
     @property 
-    def input_position_source(self):  return self._input_position_source;
+    def hasPosition(self):          return self._hasPosition;
     @property 
-    def input_position_offset(self):  return self._input_position_offset;
+    def hasNormal(self):            return self._hasNormal;
+    @property 
+    def hasTexcoord(self):          return self._hasTexcoord;
+    @property 
+    def hasColor(self):             return self._hasColor;
+    @property 
+    def inputPositionSource(self):  return self._inputPositionSource;
+    @property 
+    def inputPositionOffset(self):  return self._inputPositionOffset;
     @property
-    def input_position_set(self):     return self._input_position_set;
+    def inputPositionSet(self):     return self._inputPositionSet;
     @property
-    def input_normal_source(seaf):    return self._input_normal_source;
+    def inputNormalSource(self):    return self._inputNormalSource;
     @property
-    def input_normal_offset(self):    return self._input_normal_offset;
+    def inputNormalOffset(self):    return self._inputNormalOffset;
     @property
-    def input_normal_set(self):       return self._input_normal_set;
+    def inputNormalSet(self):       return self._inputNormalSet;
     @property
-    def input_texcoord_source(self):  return self._input_texcoord_source;
+    def inputTexcoordSource(self):  return self._inputTexcoordSource;
     @property
-    def input_texcoord_offset(self):  return self._input_texcoord_offset;
+    def inputTexcoordOffset(self):  return self._inputTexcoordOffset;
     @property
-    def input_texcoord_set(self):     return self._input_texcoord_set;
+    def inputTexcoordSet(self):     return self._inputTexcoordSet;
     @property
-    def input_color_source(self):     return self._input_color_source;
+    def inputColorSource(self):     return self._inputColorSource;
     @property
-    def input_color_offset(self):     return self._input_color_offset;
+    def inputColorOffset(self):     return self._inputColorOffset;
     @property
-    def input_color_set(self):        return self._input_color_set;
+    def inputColorSet(self):        return self._inputColorSet;
     @property
-    def material(self):               return self._material;
+    def material(self):             return self._material;
     @property
-    def vertexCount(self):            return self._vertexCount;
+    def vertexCount(self):          return self._vertexCount;
     @property
-    def valueCount(self):             return self._valueCount;
+    def valueCount(self):           return self._valueCount;
     @property
-    def p(self):                      return self._p;
-    def totalValueCount(self):
-        # return reduce(lambda x, y: int(x) + int(y), self.vcount);
-        return sum(self.valueCount);
+    def p(self):                    return self._p;
+    @property
+    def inputElementCount(self):    return self._inputElementCount;
 
 class DebugPrint:
     """ Dummy Class
