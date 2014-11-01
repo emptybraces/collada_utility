@@ -16,18 +16,6 @@ def write(file, fmt, *args):
         file.write(fmt, *args);
     else:
         file.write(struct.pack(fmt, *args));
-def normalize(values):
-    x = values[0];
-    y = values[1];
-    z = values[2];
-    length = x*x + y*y + z*z;
-    out = [x, y, z];
-    if length > 0:
-        length = 1 / math.sqrt(length);
-        out[0] = x * length;
-        out[1] = y * length;
-        out[2] = z * length;
-    return out;
 #
 # write to a file the custom model data include indices.
 #
@@ -115,19 +103,34 @@ def writeBinaryWithIndices(f, datalist):
 def writeBinary(f, datalist):
     """
     write to a file the custom model data.
-    
-    datamap
-    column: name, byte(*=variable length)
-    custom type,                4
-    geometry name,              *
-    material name,              *
-    position semantic,          4
-    position data count,  4
-    normal semantic,      4
-    normal data count,    4
-    common semantic,      4 
-    position data,        4 * position data count
-    normal data,          4 * normal data count
+
+    custom model data description is following.
+    in case of not exist data, fill the -1 value.
+    # example
+    # filename1:
+    #     datakind databyte(*=variable length)
+    # filename2:
+    #     ...
+
+    argv[2]_datamap.bin:
+        custom type             4
+        position data offset    4
+        position data count     4
+        normal data offset      4
+        normal data count       4
+        uv data offset          4
+        uv data count           4
+        color data offset       4
+        color data count        4
+        index data offset       4
+        index data count        4
+    argv[2]_vertex.bin:
+        position vertices       *
+        normal vertices         *
+        uvmap data              *
+        color data              *
+    argv[2]_index.bin
+        index data              *
     """
     pos_semantic = None;
     pos_indices = None;
@@ -341,8 +344,6 @@ def main():
                         library_effects, "can not find effect object.");
                     data["material_count"]      = len(target_effect.surfaceElementList);
                     data["material_image_name"] = target_effect.surfaceElementList;
-                    print(data["material_count"])
-                    print(data["material_image_name"])
 
                 # vertex count
                 data["vertex_count"] = polylist.vertexCount;
