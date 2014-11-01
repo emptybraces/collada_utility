@@ -1,6 +1,6 @@
 import sys
 import inspect
-
+import util
 class Library:
     """parent class of all library classes.
     """
@@ -72,31 +72,36 @@ class MaterialElement(Element):
     @property
     def instanceEffectUrl(self):
         return self._instanceEffectUrl;
+    def match(self, id):
+        return id == self.id;
     
 class EffectElement(Element):
     """<effect> element information"""
     def __init__(self, element, namespaces):
         super().__init__(element, namespaces);
-        self._newparamElementList = [];
-        for elem in element.findall("NS:newparam", namespaces):
-            self._newparamElementList.append(NewparamElement(elem, namespaces));
+        self._surfaceElementList = [];
+        for elem in element.findall("NS:profile_COMMON/NS:newparam/NS:surface", namespaces):
+            surface = {"type":elem.attrib["type"], "initFrom": elem.find("NS:init_from", namespaces).text};
+            self.surfaceElementList.append(surface);
     @property
-    def newparamElementList(self): return self._newparamElementList
-    
-class NewparamElement(Element):
-    """<newparam> element information"""
-    def __init__(self, element, namespaces):
-        super().__init__(element, namespaces);
-        surface_element = element.find("NS:surface", namespaces);
-        self._surfaceType = surface_element.attrib.get("type");
-        self._surfaceInitfrom = element.find("NS:surface/NS:init_from", namespaces).text;
-        self._sampler2DSource = element.find("NS:sampler2D/NS:source", namespaces).text;
-    @property
-    def surfaceType(self):     return self._surfaceType;
-    @property
-    def surfaceInitfrom(self): return self._surfaceInitfrom;
-    @property
-    def sampler2DSource(self): return self._sampler2DSource;
+    def surfaceElementList(self): return self._surfaceElementList;
+    def match(self, id):
+        return id == self.id;
+
+# class NewparamElement(Element):
+#     """<newparam> element information"""
+#     def __init__(self, element, namespaces):
+#         super().__init__(element, namespaces);
+#         surface_element = element.find("NS:surface", namespaces);
+#         self._surfaceType = surface_element.attrib.get("type");
+#         self._surfaceInitfrom = element.find("NS:surface/NS:init_from", namespaces).text;
+#         self._sampler2DSource = element.find("NS:sampler2D/NS:source", namespaces).text;
+#     @property
+#     def surfaceType(self):     return self._surfaceType;
+#     @property
+#     def surfaceInitfrom(self): return self._surfaceInitfrom;
+#     @property
+#     def sampler2DSource(self): return self._sampler2DSource;
 
 class ImageElement(Element):
     """<image> element information"""
@@ -212,9 +217,9 @@ class PolylistElement(Element):
         # get the vertex count
         self._vertexCount = element.attrib.get("count");
         # get the value count
-        self._valueCount = sum(convertStringList2IntList(element.find("NS:vcount", namespaces).text.split()));
+        self._valueCount = sum(util.convertStringList2IntList(element.find("NS:vcount", namespaces).text.split()));
         # get the p
-        self._p = convertStringList2IntList(element.find("NS:p", namespaces).text.split());
+        self._p = util.convertStringList2IntList(element.find("NS:p", namespaces).text.split());
         # input element count
         self._inputElementCount = input_element_count;
     @property 
@@ -277,6 +282,6 @@ class DebugPrint:
     def __exit__(self, type, value, traceback):
         pass;
 
-# utility methods
-def convertStringList2IntList(stringList):
-    return list(map(lambda x: int(x), stringList));
+
+
+

@@ -5,6 +5,7 @@ import math
 # from xml.etree import ElementTree
 from xml.etree import ElementTree
 from classes import *
+import util
 # const variable definition
 DEBUG_MODE = True;
 USE_INDICES = False;
@@ -205,6 +206,8 @@ def main():
         library_materials = LibraryMaterials();
         library_images = LibraryImages();
         library_geometries = LibraryGeometries();
+        library_materials = LibraryMaterials();
+        library_effects = LibraryEffects();
 
         # make the library
         for child in root:
@@ -216,13 +219,19 @@ def main():
             # do not need information
             elif "library_lights" == tag: pass
             # do not need information
-            elif "library_effects" == tag: pass
-            # do not need information
             elif "library_controllers" == tag: pass
             # do not need information
             elif "library_visual_scenes" == tag: pass
             # do not need information
             elif "scene" == tag: pass
+            elif "library_effects" == tag: 
+                # get effects elements
+                effect_elements = child.findall("NS:effect", namespaces);
+                # register each element
+                for elem in effect_elements:
+                    effect = EffectElement(elem, namespaces);
+                    library_effects.addElement(effect);
+
             elif "library_materials" == tag:
                 # get material elements
                 material_elements = child.findall("NS:material", namespaces);
@@ -262,7 +271,8 @@ def main():
         # data["color_value"]           = None;
         # data["color_value_count"]     = None;
         # data["color_index"]           = None;
-        # data["material"]              = None;
+        # data["material_count"]        = None;
+        # data["material_image_name"]   = None;
         # data["vertex_count"]          = None;
 
         # store the data to write
@@ -322,7 +332,18 @@ def main():
                     data["color_value_count"]   = ts.count;
                     data["color_index"]         = polylist.p[offset::iecount];
                 # material data
-                data["material"] = polylist.material;
+                if polylist.material:
+                    target_material = util.filterForOnly(
+                        lambda e: e.match(polylist.material), 
+                        library_materials, "can not find material object.");
+                    target_effect = util.filterForOnly(
+                        lambda e: e.match(target_material.instanceEffectUrl[1:]), 
+                        library_effects, "can not find effect object.");
+                    data["material_count"]      = len(target_effect.surfaceElementList);
+                    data["material_image_name"] = target_effect.surfaceElementList;
+                    print(data["material_count"])
+                    print(data["material_image_name"])
+
                 # vertex count
                 data["vertex_count"] = polylist.vertexCount;
                 # append the datalist
