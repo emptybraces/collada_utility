@@ -149,8 +149,8 @@ class SourceElement(Element):
     def __init__(self, element, namespaces):
         super(self.__class__, self).__init__(element, namespaces);
         float_array = element.find("NS:float_array", namespaces);
-        self._value = float_array.text.split();
-        self._count = float_array.attrib.get("count");
+        self._value = util.convertElementType(float_array.text.split(), float);
+        self._count = int(float_array.attrib.get("count"));
         # stride = 3; # TODO: get from accessor attribute
         # self.data = self.splitArray(text.split(" "), stride);
     @property
@@ -217,9 +217,9 @@ class PolylistElement(Element):
         # get the vertex count
         self._vertexCount = element.attrib.get("count");
         # get the value count
-        self._valueCount = sum(util.convertStringList2IntList(element.find("NS:vcount", namespaces).text.split()));
+        self._valueCount = sum(util.convertElementType(element.find("NS:vcount", namespaces).text.split(), int));
         # get the p
-        self._p = util.convertStringList2IntList(element.find("NS:p", namespaces).text.split());
+        self._p = util.convertElementType(element.find("NS:p", namespaces).text.split(), int);
         # input element count
         self._inputElementCount = input_element_count;
     @property 
@@ -265,8 +265,8 @@ class PolylistElement(Element):
     @property
     def inputElementCount(self):    return self._inputElementCount;
 
-class DebugPrint:
-    """ Dummy Class
+class DummyWriter:
+    """ DummyWriter Class
         Instead of binary output
         print() function can not be used with binary mode.
     """

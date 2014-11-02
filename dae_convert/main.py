@@ -2,6 +2,7 @@ import sys
 import re
 import struct
 import math
+import os.path
 # from xml.etree import ElementTree
 from xml.etree import ElementTree
 from classes import *
@@ -16,23 +17,37 @@ def write(file, fmt, *args):
         file.write(fmt, *args);
     else:
         file.write(struct.pack(fmt, *args));
-#
-# write to a file the custom model data include indices.
-#
-# datamap
-# name, byte
-# mode,					4
-# position semantic, 	4
-# position data count, 	4
-# normal semantic, 		4
-# normal data count, 	4
-# common semantic, 		4 
-# indices count, 		4
-# indices data,			2 * indices count
-# position data,		4 * position data count
-# normal data,			4 * normal data count
-# 
 def writeBinaryWithIndices(f, datalist):
+    """
+    write to a file the custom model data include indices.
+
+    index used when drawing.
+
+
+    in case of not exist data, fill the -1 value.
+    custom model data description is following.
+    # example
+    # filename1:
+    #     datakind databyte(*=variable length)
+    # filename2:
+    #     ...
+
+    argv[2]/GEOMETRYNAME_datamap.bin:
+        output type             4
+        position value count    4
+        position data offset    4
+        normal value count      4
+        normal data offset      4
+        texcoord value count    4
+        texcoord data offset    4
+        color value count       4
+        color data offset       4
+    argv[2]/GEOMETRYNAME_vertex.bin:
+        position vertices       4*
+        normal vertices         4*
+        uvmap data              4*
+        color data              4*
+    """
     pass;
     # pos_semantic = None;
     # pos_valuenum = None;
@@ -100,101 +115,119 @@ def writeBinaryWithIndices(f, datalist):
     #     v3 = normalize(v3);
     #     write(f, "<3f", v3[0], v3[1], v3[2]);
     # print();
-def writeBinary(f, datalist):
+def writeBinary(datalist):
     """
     write to a file the custom model data.
 
-    custom model data description is following.
+    index is not used when drawing.
+    therefore, store a value in the order as the index.
     in case of not exist data, fill the -1 value.
+    custom model data description is following.
     # example
     # filename1:
     #     datakind databyte(*=variable length)
     # filename2:
     #     ...
 
-    argv[2]_datamap.bin:
-        custom type             4
+    argv[2]/GEOMETRYNAME_datamap.bin:
+        output type             4
+        position value count    4
         position data offset    4
-        position data count     4
+        normal value count      4
         normal data offset      4
-        normal data count       4
-        uv data offset          4
-        uv data count           4
+        texcoord value count    4
+        texcoord data offset    4
+        color value count       4
         color data offset       4
-        color data count        4
-        index data offset       4
-        index data count        4
-    argv[2]_vertex.bin:
-        position vertices       *
-        normal vertices         *
-        uvmap data              *
-        color data              *
-    argv[2]_index.bin
-        index data              *
+    argv[2]/GEOMETRYNAME_vertex.bin:
+        position vertices       4*
+        normal vertices         4*
+        uvmap data              4*
+        color data              4*
     """
-    pos_semantic = None;
-    pos_indices = None;
-    pos_vertex = None;
-    normal_semantic = None;
-    normal_indices = None;
-    normal_vertex = None;
-    # collect write info
-    for m in data_map:
-        # vertex info
-        if m["semantic"] == "VERTEX":
-            pos_semantic = ord(m["semantic"][0]);
-            pos_indices = m["index"];
-            pos_vertex = m["vertex"];
-        # normal info
-        elif m["semantic"] == "NORMAL":
-            normal_semantic = ord(m["semantic"][0]);
-            normal_indices = m["index"];
-            normal_vertex = m["vertex"];
-
-    new_vertex_pos = [];
-    for pi in pos_indices:
-        x = float(pos_vertex[pi * 3 + 0]);
-        y = float(pos_vertex[pi * 3 + 1]);
-        z = float(pos_vertex[pi * 3 + 2]);
-        new_vertex_pos.append(x);
-        new_vertex_pos.append(y);
-        new_vertex_pos.append(z);
-
-    new_vertex_normal = [];
-    for ni in normal_indices:
-        x = float(normal_vertex[ni * 3 + 0]);
-        y = float(normal_vertex[ni * 3 + 1]);
-        z = float(normal_vertex[ni * 3 + 2]);
-        new_vertex_normal.append(x);
-        new_vertex_normal.append(y);
-        new_vertex_normal.append(z);
-    # write
-    print("header part:");
-    write(f, "<1i", 1);
-    write(f, "<2i", pos_semantic, v_num * 3);
-    write(f, "<2i", normal_semantic, v_num * 3);
-    write(f, "<1i", ord("Common"[0]));
-
-    print("\ndata part:");
-    # vertex data
-    for elem in new_vertex_pos: 
-        write(f, "<1f", elem);
-    print();
-    # normal data
-    for elem in new_vertex_normal:
-        write(f, "<1f", elem);
-    print();
+    NVALUE = -1;
+    for data in datalist:
+        # write to datamap.bin
+        filepath = "{}/{}_datamap.bin".format(sys.argv[2], data["geometry_name"]);
+        with (DummyWriter() if DEBUG_MODE else open(filepath, "wb")) as f: 
+            print("write: {}_datamap.bin".format(data["geometry_name"]));
+            write(f, "<1i", 1);                         # output type
+            ofs = 0;
+            value_count = data["position_value_count"];
+            write(f, "<1i", value_count);               # position value count
+            write(f, "<1i", ofs);                       # position data offset
+            ofs += value_count * 4;
+            value_count = data.get("normal_value_count", NVALUE);
+            write(f, "<1i", value_count);               # normal value count
+            write(f, "<1i", ofs);                       # normal data offset
+            ofs += max(value_count, 0) * 4;
+            value_count = data.get("uv_value_count", NVALUE);
+            write(f, "<1i", value_count);               # texcoord value count
+            write(f, "<1i", ofs);                       # texcoord data offset
+            ofs += max(value_count, 0) * 4;
+            value_count = data.get("color_value_count", NVALUE);
+            write(f, "<1i", value_count);               # color value count
+            write(f, "<1i", ofs);                       # color data offset
+            print();
+        # write to vertex.bin
+        filepath = "{}/{}_vertex.bin".format(sys.argv[2], data["geometry_name"]);
+        with (DummyWriter() if DEBUG_MODE else open(filepath, "wb")) as f: 
+            print("write: {}_vertex.bin".format(data["geometry_name"]));
+            # position vertices
+            value = data["position_value"];
+            for idx in data["position_index"]:
+                x, y, z = value[idx*3 : idx*3+3];
+                write(f, "<3f", x, y, z);
+            # normal vertices
+            value = data.get("normal_value");
+            if value:
+                for idx in data["normal_index"]:
+                    x, y, z = value[idx*3 : idx*3+3];
+                    write(f, "<3f", x, y, z);
+            # texcoord data
+            value = data.get("texcoord_value");
+            if value:
+                for idx in data["texcoord_index"]:
+                    u, v = value[idx*2 : idx*2+2];
+                    write(f, "<2f", u, v);
+            # color data
+            value = data.get("color_value");
+            if value:
+                for idx in data["color_index"]:
+                    r, g, b = value[idx*3 : idx*3+3];
+                    write(f, "<3f", r, g, b);
+            print()
 # 
 # main process 
 # 
 def main():
     """main process.
     """
-    if len(sys.argv) <= (2 if not DEBUG_MODE else 1):
-        print("invalid arguments");
-        sys.exit();
+    # check input arguments
+    if DEBUG_MODE:
+        if len(sys.argv) <= 1:
+            print("invalid arguments: not enough arguments.");
+            sys.exit();
+        if not os.path.isfile(sys.argv[1]):
+            print("invalid arguments: first argument　be required to specify the file path.");
+            sys.exit();
+        # adjust the argument length
+        if len(sys.argv) == 2:
+            sys.argv.append("hoge");
+    else:
+        if len(sys.argv) <= 2:
+            print("invalid arguments: not enough arguments.");
+            sys.exit();
+        if not os.path.isfile(sys.argv[1]):
+            print("invalid arguments: first argument　be required to specify the file path.");
+            sys.exit();
+        if not os.path.isdir(sys.argv[2]):
+            print("invalid arguments: second argument　be required to type the directory path.");
+            sys.exit();
 
+    # collada namespace
     namespaces = {"NS":"http://www.collada.org/2005/11/COLLADASchema"};
+
     # input the file and parse
     try:
         tree = ElementTree.parse(sys.argv[1]);
@@ -262,6 +295,7 @@ def main():
         # declare the data info to write
         data_list = [];
         # data = {};
+        # data["geometry_name"]         = None;
         # data["position_value"]        = None;
         # data["position_value_count"]  = None;
         # data["position_index"]        = None;
@@ -289,6 +323,8 @@ def main():
                 
                 data = {};
                 iecount = polylist.inputElementCount;
+                # geometry name
+                data["geometry_name"] = geo.name;
                 # position data
                 if polylist.hasPosition:
                     # extract source text in vertices element
@@ -350,11 +386,10 @@ def main():
                 # append the datalist
                 data_list.append(data);
         # write binary
-        # with (open(sys.argv[2], 'wb' ) if not DEBUG_MODE else DebugPrint()) as f:
-        # 	if USE_INDICES:
-        # 		writeBinaryWithIndices(f, data_list);
-        # 	else:
-        # 		writeBinary(f, data_list);
+        if USE_INDICES:
+            writeBinaryWithIndices(data_list);
+        else:
+            writeBinary(data_list);
     except:
         print("unexpected error", sys.exc_info()[0]);
         raise;
