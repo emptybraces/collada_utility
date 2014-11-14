@@ -2,13 +2,14 @@ import sys
 import re
 import struct
 import math
+import urllib.parse
 import os.path
 # from xml.etree import ElementTree
 from xml.etree import ElementTree
 from classes import *
 import util
 # const variable definition
-DEBUG_MODE = True;
+DEBUG_MODE = False;
 USE_INDICES = False;
 
 # functions
@@ -129,7 +130,15 @@ def writeBinary(datalist):
     # filename2:
     #     ...
 
-    argv[2]/GEOMETRYNAME_datamap.bin:
+    # datamap list file
+    # file that contains the datamap list.
+    argv[2]/DAEFILENAME.bin
+        output type             4
+        datamap file count      4
+        datamap filename        *
+    # datamap file
+    # file that contains the each model data information.
+    argv[2]/DAEFILENAME/GEOMETRYNAME_datamap.bin:
         output type             4
         position value count    4
         position data offset    4
@@ -139,64 +148,120 @@ def writeBinary(datalist):
         texcoord data offset    4
         color value count       4
         color data offset       4
-    argv[2]/GEOMETRYNAME_vertex.bin:
+        material count          4
+    # vertex data file
+    # file that contains the vertex data.
+    argv[2]/DAEFILENAME/GEOMETRYNAME_vertex.bin:
         position vertices       4*
         normal vertices         4*
         uvmap data              4*
         color data              4*
+    # material data file
+    # file that contains the material data.
+    argv[2]/DAEFILENAME/GEOMETRYNAME_material.bin:
+        datamap filename        *
     """
+    # none value
     NVALUE = -1;
+    # output type
+    otype = 1;
+    # output directry path
+    output_dir = sys.argv[2];
+    # .dae file name
+    dae_filename = os.path.basename(sys.argv[1]).split(".")[0];
+    # write to datamap list file
+    datamap_file_count = len(datalist);
+    filepath = "{}/{}.bin".format(output_dir, dae_filename);
+    with (DummyWriter() if DEBUG_MODE else open(filepath, "wb")) as f:
+        print("write: {}".format(filepath));
+        write(f, "<1i", otype);                # output type
+        write(f, "<1i", datamap_file_count);   # datamap file count
+        for data in datalist:
+            datamap_filepath = "{}/{}_datamap.bin".format(dae_filename, data["geometry_name"]);
+            pack_fmt = "<{}ss".format(len(datamap_filepath)); 
+            write(f, pack_fmt, datamap_filepath.encode("utf-8"), "\0".encode("utf-8"));
+            print();
+    # make directory output model data
+    if not DEBUG_MODE:
+        dir_path = "{}/{}".format(output_dir, dae_filename);
+        os.path.exists(dir_path) or os.mkdir(dir_path);
+
+    # write to model data
     for data in datalist:
         # write to datamap.bin
-        filepath = "{}/{}_datamap.bin".format(sys.argv[2], data["geometry_name"]);
+        filepath = "{}/{}/{}_datamap.bin".format(output_dir, dae_filename, data["geometry_name"]);
         with (DummyWriter() if DEBUG_MODE else open(filepath, "wb")) as f: 
-            print("write: {}_datamap.bin".format(data["geometry_name"]));
-            write(f, "<1i", 1);                         # output type
+            print("write: {}".format(filepath));
+            write(f, "<1i", otype);                     # output type
             ofs = 0;
-            value_count = data["position_value_count"];
+            value_count = data["value_count"] * 3;
             write(f, "<1i", value_count);               # position value count
             write(f, "<1i", ofs);                       # position data offset
             ofs += value_count * 4;
             value_count = data.get("normal_value_count", NVALUE);
+            if value_count != -1: value_count = data["value_count"] * 3;
             write(f, "<1i", value_count);               # normal value count
             write(f, "<1i", ofs);                       # normal data offset
             ofs += max(value_count, 0) * 4;
-            value_count = data.get("uv_value_count", NVALUE);
+            value_count = data.get("texcoord_value_count", NVALUE);
+            if value_count != -1: value_count = data["value_count"] * 2;
             write(f, "<1i", value_count);               # texcoord value count
             write(f, "<1i", ofs);                       # texcoord data offset
             ofs += max(value_count, 0) * 4;
             value_count = data.get("color_value_count", NVALUE);
+            if value_count != -1: value_count = data["value_count"] * 3;
             write(f, "<1i", value_count);               # color value count
             write(f, "<1i", ofs);                       # color data offset
+            ofs += max(value_count, 0) * 4;
+            value_count = data.get("material_count", NVALUE);
+            write(f, "<1i", value_count);               # material count
             print();
         # write to vertex.bin
-        filepath = "{}/{}_vertex.bin".format(sys.argv[2], data["geometry_name"]);
+        filepath = "{}/{}/{}_vertex.bin".format(output_dir, dae_filename, data["geometry_name"]);
         with (DummyWriter() if DEBUG_MODE else open(filepath, "wb")) as f: 
-            print("write: {}_vertex.bin".format(data["geometry_name"]));
+            print("write: {}".format(filepath));
             # position vertices
             value = data["position_value"];
             for idx in data["position_index"]:
                 x, y, z = value[idx*3 : idx*3+3];
                 write(f, "<3f", x, y, z);
+            print()
             # normal vertices
             value = data.get("normal_value");
             if value:
                 for idx in data["normal_index"]:
                     x, y, z = value[idx*3 : idx*3+3];
                     write(f, "<3f", x, y, z);
+                print()
             # texcoord data
             value = data.get("texcoord_value");
             if value:
                 for idx in data["texcoord_index"]:
                     u, v = value[idx*2 : idx*2+2];
                     write(f, "<2f", u, v);
+                print()
             # color data
             value = data.get("color_value");
             if value:
                 for idx in data["color_index"]:
                     r, g, b = value[idx*3 : idx*3+3];
                     write(f, "<3f", r, g, b);
-            print()
+                print()
+        # write to material.bin
+        material_count = data.get("material_count");
+        if material_count:
+            filepath = "{}/{}/{}_material.bin".format(output_dir, dae_filename, data["geometry_name"]);
+            with (DummyWriter() if DEBUG_MODE else open(filepath, "wb")) as f: 
+                print("write: {}".format(filepath));
+                # suface
+                # for surface in data["material_surface"]:
+                #     pack_fmt = "<{}ss".format(len(surface["initfrom"])); 
+                #     write(f, pack_fmt, surface["initfrom"].encode("utf-8"), "\0".encode("utf-8"));
+                # imagenames
+                for image_name in data["material_imagenames"]:
+                    pack_fmt = "<{}ss".format(len(image_name)); 
+                    write(f, pack_fmt, urllib.parse.unquote(image_name).encode("utf-8"), "\0".encode("utf-8"));
+
 # 
 # main process 
 # 
@@ -222,7 +287,7 @@ def main():
             print("invalid arguments: first argument　be required to specify the file path.");
             sys.exit();
         if not os.path.isdir(sys.argv[2]):
-            print("invalid arguments: second argument　be required to type the directory path.");
+            print("invalid arguments: second argument　be required to specify the directory path.");
             sys.exit();
 
     # collada namespace
@@ -244,6 +309,7 @@ def main():
         library_geometries = LibraryGeometries();
         library_materials = LibraryMaterials();
         library_effects = LibraryEffects();
+        library_visual_scenes = LibraryVisualScenes();
 
         # make the library
         for child in root:
@@ -256,8 +322,6 @@ def main():
             elif "library_lights" == tag: pass
             # do not need information
             elif "library_controllers" == tag: pass
-            # do not need information
-            elif "library_visual_scenes" == tag: pass
             # do not need information
             elif "scene" == tag: pass
             elif "library_effects" == tag: 
@@ -291,10 +355,19 @@ def main():
                 for elem in geometry_elements:
                     geometry = GeometryElement(elem, namespaces);
                     library_geometries.addElement(geometry);
+            elif "library_visual_scenes" == tag: 
+                # get visual scene element
+                visual_scene_elements = child.findall("NS:visual_scene", namespaces);
+                # register each element
+                for elem in visual_scene_elements:
+                    visual_scene = VisualSceneElement(elem, namespaces);
+                    library_visual_scenes.addElement(visual_scene);
+
 
         # declare the data info to write
         data_list = [];
         # data = {};
+        # data["geometry_id"]           = None;
         # data["geometry_name"]         = None;
         # data["position_value"]        = None;
         # data["position_value_count"]  = None;
@@ -309,14 +382,22 @@ def main():
         # data["color_value_count"]     = None;
         # data["color_index"]           = None;
         # data["material_count"]        = None;
-        # data["material_image_name"]   = None;
+        # data["material_surface"]      = None;
+        # data["material_imagenames"]   = None;
         # data["vertex_count"]          = None;
-
+        # data["value_count"]           = None;
+        mat = Matrix();
         # store the data to write
         for geo in library_geometries:
             sourcesElemList     = geo.mesh.sourceElementList;
             verticesElemList    = geo.mesh.verticesElementList;
             polylistElemList    = geo.mesh.polylistElementList;
+            # visual scene parameter
+            visual_scene = library_visual_scenes.elements[0];
+            transform = util.filterForOnly(
+                lambda e: e.matchUrl(geo.id), 
+                visual_scene.nodeElementList, "can not find node object.").matrix;
+            # print(transform)
 
             # store the data for each element polylist
             for polylist in polylistElemList:
@@ -324,36 +405,55 @@ def main():
                 data = {};
                 iecount = polylist.inputElementCount;
                 # geometry name
-                data["geometry_name"] = geo.name;
+                data["geometry_id"]     = geo.id;
+                data["geometry_name"]   = geo.name;
                 # position data
                 if polylist.hasPosition:
                     # extract source text in vertices element
                     sourceRef = polylist.inputPositionSource;
-                    vertices = list(filter(lambda e: e.match(sourceRef), verticesElemList));
+                    vertices = list(filter(lambda e: e.match(sourceRef[1:]), verticesElemList));
                     if vertices:
                         sourceRef = vertices[0].source;
                     # target sources
-                    target_sources = list(filter(lambda e: e.match(sourceRef), sourcesElemList));
+                    target_sources = list(filter(lambda e: e.match(sourceRef[1:]), sourcesElemList));
                     assert target_sources, "can not find sources position.";
                     ts = target_sources[0];
                     offset = polylist.inputPositionOffset;
                     data["position_value"]          = ts.value;
                     data["position_value_count"]    = ts.count;
                     data["position_index"]          = polylist.p[offset::iecount];
+                    # transform position
+                    for i in range(0, int(ts.count/3)):
+                        # print(ts.value[i*3 : i*3+3])
+                        # print("-----------------------------")
+                        x, y, z = mat.multiplyVec3(transform, ts.value[i*3 : i*3+3]);
+                        data["position_value"][i*3+0] = x;
+                        data["position_value"][i*3+1] = y;
+                        data["position_value"][i*3+2] = z;
+                        # print(x, y, z)
+                        # print()
+                    # print(data["position_value"])
                 # normal data
                 if polylist.hasNormal:
                     sourceRef = polylist.inputNormalSource;
-                    target_sources = list(filter(lambda e: e.match(sourceRef), sourcesElemList));
+                    target_sources = list(filter(lambda e: e.match(sourceRef[1:]), sourcesElemList));
                     assert target_sources, "can not find sources normal.";
                     ts = target_sources[0];
                     offset = polylist.inputNormalOffset;
                     data["normal_value"]        = ts.value;
                     data["normal_value_count"]  = ts.count;
                     data["normal_index"]        = polylist.p[offset::iecount];
+                    # transform normal
+                    for i in range(0, int(ts.count/3)):
+                        x, y, z = mat.multiplyVec3(transform, ts.value[i*3 : i*3+3]);
+                        x, y, z = util.normalize([x, y, z]);
+                        data["normal_value"][i*3+0] = x;
+                        data["normal_value"][i*3+1] = y;
+                        data["normal_value"][i*3+2] = z;
                 # texcoord data
                 if polylist.hasTexcoord:
                     sourceRef = polylist.inputTexcoordSource;
-                    target_sources = list(filter(lambda e: e.match(sourceRef), sourcesElemList));
+                    target_sources = list(filter(lambda e: e.match(sourceRef[1:]), sourcesElemList));
                     assert target_sources, "can not find sources texcoord.";
                     ts = target_sources[0];
                     offset = polylist.inputTexcoordOffset;
@@ -363,7 +463,7 @@ def main():
                 # color data
                 if polylist.hasColor:
                     sourceRef = polylist.inputColorSource;
-                    target_sources = list(filter(lambda e: e.match(sourceRef), sourcesElemList));
+                    target_sources = list(filter(lambda e: e.match(sourceRef[1:]), sourcesElemList));
                     assert target_sources, "can not find sources color.";
                     ts = target_sources[0];
                     offset = polylist.inputColorOffset;
@@ -379,10 +479,16 @@ def main():
                         lambda e: e.match(target_material.instanceEffectUrl[1:]), 
                         library_effects, "can not find effect object.");
                     data["material_count"]      = len(target_effect.surfaceElementList);
-                    data["material_image_name"] = target_effect.surfaceElementList;
-
+                    data["material_surface"]    = target_effect.surfaceElementList;
+                    data["material_imagenames"] = [];
+                    for surface in target_effect.surfaceElementList:
+                        target_image = util.filterForOnly(
+                            lambda e: e.match(surface["initfrom"]), 
+                            library_images, "can not find image object.");
+                        data["material_imagenames"].append(target_image.initfrom);
                 # vertex count
                 data["vertex_count"] = polylist.vertexCount;
+                data["value_count"]  = polylist.valueCount;
                 # append the datalist
                 data_list.append(data);
         # write binary

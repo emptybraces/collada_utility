@@ -24,15 +24,18 @@ class LibraryEffects(Library):
     """
     def __init__(self):
         super().__init__();
-
 class LibraryImages(Library):
     """manage for ImageElement class.
     """
     def __init__(self):
         super().__init__();
-
 class LibraryGeometries(Library):
     """manage for GeometryElement class.
+    """
+    def __init__(self):
+        super().__init__();
+class LibraryVisualScenes(Library):
+    """manage for VisualSceneElement class.
     """
     def __init__(self):
         super().__init__();
@@ -63,6 +66,8 @@ class Element:
         return r;
     def debugPrint(self, clazz):
         print(vars(clazz));
+    def match(self, id):
+        return id == self.id;
 
 class MaterialElement(Element):
     """<material> element information"""
@@ -72,8 +77,6 @@ class MaterialElement(Element):
     @property
     def instanceEffectUrl(self):
         return self._instanceEffectUrl;
-    def match(self, id):
-        return id == self.id;
     
 class EffectElement(Element):
     """<effect> element information"""
@@ -81,12 +84,10 @@ class EffectElement(Element):
         super().__init__(element, namespaces);
         self._surfaceElementList = [];
         for elem in element.findall("NS:profile_COMMON/NS:newparam/NS:surface", namespaces):
-            surface = {"type":elem.attrib["type"], "initFrom": elem.find("NS:init_from", namespaces).text};
+            surface = {"type":elem.attrib["type"], "initfrom": elem.find("NS:init_from", namespaces).text};
             self.surfaceElementList.append(surface);
     @property
     def surfaceElementList(self): return self._surfaceElementList;
-    def match(self, id):
-        return id == self.id;
 
 # class NewparamElement(Element):
 #     """<newparam> element information"""
@@ -159,8 +160,6 @@ class SourceElement(Element):
     @property
     def count(self):
         return self._count;
-    def match(self, source):
-        return self.id in source;
 
 class VerticesElement(Element):
     """<vertices> element information"""
@@ -175,8 +174,6 @@ class VerticesElement(Element):
     @property
     def source(self):
         return self._source;
-    def match(self, source):
-        return self.id in source;
 
 class PolylistElement(Element):
     """<polylist> element information"""
@@ -265,6 +262,40 @@ class PolylistElement(Element):
     @property
     def inputElementCount(self):    return self._inputElementCount;
 
+class VisualSceneElement(Element):
+    """<visual_scene> element information"""
+    def __init__(self, element, namespaces):
+        super().__init__(element, namespaces);
+        self._nodeElementList = list(map(
+            lambda elem: NodeElement(elem, namespaces),
+            element.findall("NS:node", namespaces)));
+    @property
+    def nodeElementList(self):
+        return self._nodeElementList;
+
+class NodeElement(Element):
+    """<node> element information"""
+    def __init__(self, element, namespaces):
+        super().__init__(element, namespaces);
+        self._matrix = element.find("NS:matrix", namespaces).text;
+        for elem in ["instance_camera", "instance_light", "instance_geometry"]:
+            self._instanceUrl = element.find("NS:"+elem, namespaces)
+            if self._instanceUrl is not None:
+                self._instanceUrl = self._instanceUrl.attrib["url"];
+                return;
+    @property
+    def matrix(self):
+        m = Matrix();
+        matrix = util.convertElementType(self._matrix.split(), float);
+        transpose = m.transpose(matrix);
+        return transpose;
+    @property
+    def instanceUrl(self):
+        return self._instanceUrl;
+    def matchUrl(self, url):
+        return self._instanceUrl[1:] == url;
+
+
 class DummyWriter:
     """ DummyWriter Class
         Instead of binary output
@@ -282,6 +313,35 @@ class DummyWriter:
     def __exit__(self, type, value, traceback):
         pass;
 
-
-
+class Matrix:
+    """ Matrix operator class"""
+    def multiplyVec3(self, m, a):
+        x = a[0]; y = a[1]; z = a[2];
+        w = m[3] * x + m[7] * y + m[11] * z + m[15];
+        if w == 0: w = 1.0;
+        # print("w = ", w)
+        out = [0 for i in range(3)];  
+        out[0] = (m[0] * x + m[4] * y + m[8] * z + m[12]) / w;
+        out[1] = (m[1] * x + m[5] * y + m[9] * z + m[13]) / w;
+        out[2] = (m[2] * x + m[6] * y + m[10] * z + m[14]) / w;
+        return out;
+    def transpose(self, m):
+        out = [0 for i in range(16)];
+        out[0] = m[0];
+        out[1] = m[4];
+        out[2] = m[8];
+        out[3] = m[12];
+        out[4] = m[1];
+        out[5] = m[5];
+        out[6] = m[9];
+        out[7] = m[13];
+        out[8] = m[2];
+        out[9] = m[6];
+        out[10] = m[10];
+        out[11] = m[14];
+        out[12] = m[3];
+        out[13] = m[7];
+        out[14] = m[11];
+        out[15] = m[15];
+        return out;
 
